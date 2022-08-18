@@ -27,16 +27,17 @@ void setup(){
   server.begin();
 }
 
- char* x ;
+char* x = "1";
 void loop(){
- x = "1";
    server.on("/C1", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/plain", x);
   });
- delay(1000);
-x = "2";
- server.on("/C1", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/plain", x);
-  });
- delay(1000);
+  while(Serial.available()){
+    char copy = Serial.read();
+    Serial.write(copy);
+    if (copy == '1' || copy == '2' || copy == '3' ){
+      x[0] = copy;
+    }
+  }
+  delay(1000);
 }

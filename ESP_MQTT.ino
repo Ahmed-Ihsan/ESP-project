@@ -10,10 +10,10 @@
 #define MOTION_SENSOR_PIN D0
 // Define the pin connected to the gas sensor
 #define GAS_SENSOR_PIN A0
-// define the DHT type
+//// define the DHT type
 #define DHTTYPE DHT11
 
-// initialize the DHT sensor
+//// initialize the DHT sensor
 DHT dht(DHTPIN, DHTTYPE);
 // replace with your network credentials
 const char* ssid = "TP-Link_6C72";
@@ -66,6 +66,8 @@ void setup() {
   pinMode(FLAME_SENSOR_PIN, INPUT);
   // Set the motion sensor pin as an input
   pinMode(MOTION_SENSOR_PIN, INPUT);
+  // initialize digital pin LED_BUILTIN as an output.
+  pinMode(LED_BUILTIN, OUTPUT);
 }
 
 void loop() {
@@ -75,18 +77,28 @@ void loop() {
   // DH11
   float temperature = dht.readTemperature();
   float humidity = dht.readHumidity();
-  
-  String payload_temperature = String(temperature);
-  String payload_humidity = String(humidity);
-  
-//  if (isnan(temperature) || isnan(humidity)) {
-//    Serial.println("Failed to read from DHT sensor!");
-//    delay(2000);
-//    return;
-//  }
+  int motionValue = digitalRead(MOTION_SENSOR_PIN);
+  if (motionValue) {
+    motionValue = 1;
+  }
+  else {
+    motionValue = 0;
+  }
+
+  if (isnan(temperature) || isnan(humidity)) {
+    Serial.println("Failed to read from DHT sensor!");
+  } else {
+    String payload_temperature = String(temperature);
+    String payload_humidity = String(humidity);
+    client.publish("home/temp", payload_temperature.c_str());
+
+    client.publish("home/Humidity", payload_humidity.c_str());
+
+  }
 
   // Read the value from the flame sensor pin
   int flameValue = digitalRead(FLAME_SENSOR_PIN);
+  Serial.println(flameValue);
   String payload_flameValue = String(flameValue);
 
   int gasValue = analogRead(GAS_SENSOR_PIN);
@@ -95,16 +107,33 @@ void loop() {
   float gasConcentration = (5.0 * gasValue / 1023.0) / 0.1;
   String payload_gasConcentration = String(gasConcentration);
 
- // Read the value from the motion sensor pin
-  int motionValue = digitalRead(MOTION_SENSOR_PIN);
+  // Read the value from the motion sensor pin
+
   String payload_motionValue = String(motionValue);
-  
+
   // publish a message to a topic
-  client.publish("home/temp", payload_temperature.c_str());
-  client.publish("home/Humidity", payload_humidity.c_str());
   client.publish("home/flame", payload_flameValue.c_str());
+
   client.publish("home/MQ6", payload_gasConcentration.c_str());
+
   client.publish("home/motion", payload_motionValue.c_str());
-  
-  delay(1000);
+
+
+  while (WiFi.status() != WL_CONNECTED) {
+    WiFi.begin(ssid, password);
+    Serial.println("Connecting to WiFi...");
+    delay(1000);
+  }
+  delay(5000);
+  while (!client.connected()) {
+    Serial.println("Connecting to MQTT broker...");
+    if (client.connect("ESP8266Client")) {
+      Serial.println("Connected to MQTT broker!");
+    } else {
+      Serial.print("Failed with state ");
+      Serial.print(client.state());
+      delay(2000);
+    }
+  }
+
 }
